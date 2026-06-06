@@ -1,0 +1,26 @@
+apiVersion: apps/v1
+kind: DaemonSet 
+metadata:
+  name: node-monitor-agent
+  namespace: kube-system 
+  labels:
+    app: monitor-agent
+spec:
+  selector:
+    matchLabels:
+      name: monitor-agent
+  template:
+    metadata:
+      labels:
+        name: monitor-agent
+    spec:
+      containers:
+      - name: exporter
+        image: prom/node-exporter:v1.6.0
+        resources:
+          requests:
+            cpu: "50m"
+            memory: "64Mi"
+          limits:
+            cpu: "100m"
+            memory: "128Mi"
