@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: my-namespace
+  labels:
+    env: production
+    team: backend
+  annotations:
+    description: "Production namespace for backend services"
