@@ -1,0 +1,27 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: my-pod
+  namespace: default
+  labels:
+    app: my-app
+  spec:
+  containers:
+    - name: my-container
+      image: <-your image->
+      ports:
+        - containerPort: <your port->
+      resources:  
+        requests:
+          cpu: "100m"
+          memory: "128Mi"
+        limits:
+          cpu: "500m"
+          memory: "256Mi"
+      volumeMounts:
+        - name: my-volume
+          mountPath: /data
+    - volumes:
+        - name: my-volume
+          persistentVolumeClaim:
+            claimName: my-pvc
