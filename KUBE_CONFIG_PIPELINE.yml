@@ -1,0 +1,80 @@
+name: Deploy to Kubernetes
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+
+      # =========================
+      # Checkout
+      # =========================
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # =========================
+      # Login to GHCR
+      # =========================
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # =========================
+      # Build Docker image
+      # =========================
+      - name: Build Docker image
+        run: |
+          docker build \
+            -t ghcr.io/${{ github.repository_owner }}/myapp:${{ github.sha }} .
+
+      # =========================
+      # Push Docker image
+      # =========================
+      - name: Push Docker image
+        run: |
+          docker push \
+            ghcr.io/${{ github.repository_owner }}/myapp:${{ github.sha }}
+
+      # =========================
+      # Install kubectl
+      # =========================
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v4
+
+      # =========================
+      # Install Helm
+      # =========================
+      - name: Setup Helm
+        uses: azure/setup-helm@v4
+
+      # =========================
+      # Configure kubeconfig
+      # =========================
+      - name: Configure Kubernetes
+        run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.KUBE_CONFIG }}" > ~/.kube/config
+          chmod 600 ~/.kube/config
+
+      # =========================
+      # Deploy with Helm
+      # =========================
+      - name: Deploy application
+        run: |
+          helm upgrade --install myapp ./helm/myapp \
+            --namespace production \
+            --create-namespace \
+            --set image.repository=ghcr.io/${{ github.repository_owner }}/myapp \
+            --set image.tag=${{ github.sha }}
