@@ -1,0 +1,97 @@
+name: Deploy to EKS
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  id-token: write
+  contents: read
+  packages: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+
+      # =========================
+      # Checkout
+      # =========================
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # =========================
+      # Login to GHCR
+      # =========================
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # =========================
+      # Build Docker image
+      # =========================
+      - name: Build Docker image
+        run: |
+          docker build \
+            -t ghcr.io/${{ github.repository_owner }}/myapp:${{ github.sha }} .
+
+      # =========================
+      # Push Docker image
+      # =========================
+      - name: Push Docker image
+        run: |
+          docker push \
+            ghcr.io/${{ github.repository_owner }}/myapp:${{ github.sha }}
+
+      # =========================
+      # Configure AWS using OIDC
+      # =========================
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: arn:aws:iam::123456789012:role/github-actions-eks
+          aws-region: eu-central-1
+
+      # =========================
+      # Setup kubectl
+      # =========================
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v4
+
+      # =========================
+      # Setup Helm
+      # =========================
+      - name: Setup Helm
+        uses: azure/setup-helm@v4
+
+      # =========================
+      # Get EKS kubeconfig
+      # =========================
+      - name: Configure EKS
+        run: |
+          aws eks update-kubeconfig \
+            --region eu-central-1 \
+            --name production-cluster
+
+      # =========================
+      # Test Kubernetes access
+      # =========================
+      - name: Check Kubernetes access
+        run: |
+          kubectl get nodes
+
+      # =========================
+      # Deploy with Helm
+      # =========================
+      - name: Deploy application
+        run: |
+          helm upgrade --install myapp ./helm/myapp \
+            --namespace production \
+            --create-namespace \
+            --set image.repository=ghcr.io/${{ github.repository_owner }}/myapp \
+            --set image.tag=${{ github.sha }}
